@@ -1,11 +1,14 @@
-#include <QApplication>
-#include <pcl/visualization/pcl_visualizer.h>
 #include <iostream>
 #include <random>
 #include <csignal>
+#include <ranges>
+#include <algorithm>
+#include <QApplication>
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
+#include <boost/algorithm/string.hpp>
+#include <pcl/visualization/pcl_visualizer.h>
 #include "FileAndDirectory.hpp"
 #include "Backtrace.hpp"
 #include "CloudLoader.hpp"
@@ -19,35 +22,58 @@ using ColorHandler = pcl::visualization::PointCloudColorHandlerCustom<PointType>
 using Viewer = pcl::visualization::PCLVisualizer;
 
 inline const std::string LoadModeNow{"now"};
-inline const std::string LoadModeJit{"Jit"};
+inline const std::string LoadModeJit{"jit"};
 
+/**
+ *
+ * @param mode
+ * @return
+ */
 bool selectedLoadModeIsSupported(std::string_view mode) {
     std::array<std::string, 2> allowedModes{LoadModeNow, LoadModeJit};
     return std::ranges::find(allowedModes, mode) == std::ranges::end(allowedModes);
 }
 
-std::vector<RGB> generateColors(std::size_t N) {
-    std::vector<RGB> colors{};
+/**
+ *
+ * @param N
+ * @return
+ */
+std::vector<RGB> generateColors(const std::size_t N) {
+    std::vector<RGB> colors{N};
     std::uniform_real_distribution<double> distribution{1, 255};
     std::mt19937 random(std::chrono::system_clock::now().time_since_epoch().count());
-    colors.reserve(N);
-    for (auto count{0u}; count < N; ++count) {
-        colors.emplace_back(RGB{distribution(random),
-                                distribution(random),
-                                distribution(random)});
-    }
+    std::ranges::generate(std::begin(colors), std::end(colors), [&random, &distribution]() -> RGB {
+        return {distribution(random),
+                distribution(random),
+                distribution(random)};
+    });
     return colors;
 }
 
-template<std::ranges::input_range Range>
-auto getLoader(Range &&files, std::string_view mode) {
+/**
+ *
+ * @tparam Args
+ * @param mode
+ * @param args
+ * @return
+ */
+template<typename ... Args>
+auto getLoader(std::string_view mode, Args && ... args) {
     if (mode == LoadModeNow)
-        return std::make_unique<io::CloudLoader<PointType>>(files, io::immediateLoad);
-    else if(mode == LoadModeJit)
-        return std::make_unique<io::CloudLoader<PointType>>(files, io::jitLoad);
+        return std::make_unique<io::CloudLoader<PointType>>(std::forward<Args>(args)..., io::immediateLoad);
+    else if (mode == LoadModeJit)
+        return std::make_unique<io::CloudLoader<PointType>>(std::forward<Args>(args)..., io::jitLoad);
     throw std::runtime_error("Unknown loader type");
 }
 
+/**
+ *
+ * @tparam PointType
+ * @param cloud
+ * @param color
+ * @param viewer
+ */
 template<typename PointType>
 void drawCloudToScreen(typename pcl::PointCloud<PointType>::Ptr cloud, const RGB &color, Viewer &viewer) {
     const auto [r, g, b]{color};
@@ -78,7 +104,7 @@ auto main(int argc, char **argv) -> int {
             "directory,d", boost::program_options::value<std::string>()->default_value(""),
             "Path of the directory to traverse")
             ("load,l", boost::program_options::value<std::string>()->default_value("jit"),
-             "Load the cloud now or just in time");
+             "Load the cloud now or just in time (jit or now)");
     auto parsedProgramOptions{
             boost::program_options::command_line_parser(argc, argv).options(programOptionsDescriptions).run()};
     boost::program_options::store(parsedProgramOptions, programOptions);
@@ -90,7 +116,7 @@ auto main(int argc, char **argv) -> int {
     boost::program_options::notify(programOptions);
 
     const auto directoryToWalkPathAsString{programOptions["directory"].as<std::string>()};
-    const auto loadMode{programOptions["load"].as<std::string>()};
+    const auto loadMode{boost::algorithm::to_lower_copy(programOptions["load"].as<std::string>())};
     if (selectedLoadModeIsSupported(loadMode)) {
         std::clog << "Unknown loading mode [" << loadMode << "]" << std::endl;
         return EXIT_FAILURE;
@@ -98,12 +124,12 @@ auto main(int argc, char **argv) -> int {
 
     std::filesystem::path directoryToWalkPath{};
     if (directoryToWalkPathAsString.empty()) {
-        const auto selectedDirectoryAsString{io::selectDirectoryFromDialog("Select a directory to walk through")};
-        if (selectedDirectoryAsString.empty()) {
+        const auto selectedDirectory{io::selectDirectoryFromDialog("Select a directory to walk through")};
+        if (selectedDirectory.empty()) {
             std::clog << "No directory has been selected." << std::endl;
             return EXIT_FAILURE;
         }
-        directoryToWalkPath = std::filesystem::path(selectedDirectoryAsString);
+        directoryToWalkPath = selectedDirectory;
     } else {
         directoryToWalkPath = std::filesystem::path(directoryToWalkPathAsString);
     }
@@ -125,7 +151,7 @@ auto main(int argc, char **argv) -> int {
     }
 
     std::vector<RGB> colors{generateColors(files.size())};
-    std::unique_ptr<io::CloudLoader<PointType>> cloudLoader{getLoader(files, loadMode)};
+    std::unique_ptr<io::CloudLoader<PointType>> cloudLoader{getLoader(loadMode, files)};
 
     Viewer viewer{"PclWalkerViewer"};
     viewer.setSize(1280, 1024);

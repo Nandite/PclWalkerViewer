@@ -7,23 +7,42 @@
 #include <algorithm>
 #include "Accumulate.hpp"
 #include <ranges>
-#include <boost/algorithm/string/trim.hpp>
 
 namespace io {
 
-    std::string selectDirectoryFromDialog(const std::string& title);
+    /**
+     * Open a dialog to select a directory from.
+     * @param title The title of the dialog.
+     * @return The path of the selected directory.
+     */
+    std::filesystem::path selectDirectoryFromDialog(const std::string &title);
 
+    /**
+     * Check if all paths pointing to files exists on the file system.
+     * @tparam Range An input range of std::path to check.
+     * @return True if all files exist, False otherwise.
+     */
     template<std::ranges::input_range Range>
-    bool checkIfAllFilePathsExist(Range && range) {
+    bool checkIfAllFilePathsExist(Range &&range) {
         return algorithm::accumulate(std::ranges::begin(range), std::ranges::end(range), true,
                                      [](const auto v, const auto &path) {
                                          const auto exists{std::filesystem::exists(path)};
                                          if (!exists)
                                              std::clog << "File [" << path << "] does not exists" << std::endl;
-                                         return std::logical_and<>()(v, exists);
+                                         return std::logical_and()(v, exists);
                                      });
     }
 
+    /**
+     * Walk into a directory and return all file matching a given sequence of extension.
+     * Symbolic links are no considered during the walk through.
+     * @tparam Range Input range type of std::path.
+     * @param directory The directory to walk into.
+     * @param extensions A range of extensions to check for within the directory.
+     * @return a pair containing:
+     * - A Flag set to True if the directory has been walked through, False otherwise.
+     * - A list of file matching the provided extension sequence to look for.
+     */
     template<std::ranges::input_range Range>
     std::pair<bool, std::vector<std::filesystem::path>>
     directoryWalk(const std::filesystem::path &directory, Range &&extensions) {

@@ -1,9 +1,9 @@
 #include <QFileDialog>
 #include "FileAndDirectory.hpp"
 
-std::string io::selectDirectoryFromDialog(const std::string &title) {
+std::filesystem::path io::selectDirectoryFromDialog(const std::string &title) {
     QFileDialog fileSelectionDialog(nullptr);
-    fileSelectionDialog.setFileMode(QFileDialog::DirectoryOnly);
+    fileSelectionDialog.setOption(QFileDialog::ShowDirsOnly, true);
     fileSelectionDialog.setViewMode(QFileDialog::ViewMode::Detail);
     fileSelectionDialog.setWindowTitle(title.c_str());
     fileSelectionDialog.setOption(QFileDialog::DontResolveSymlinks);
@@ -12,7 +12,7 @@ std::string io::selectDirectoryFromDialog(const std::string &title) {
     if (fileSelectionDialog.exec()) {
         fileSelectionDialog.close();
         const auto selectedDirectories{fileSelectionDialog.selectedFiles()};
-        return selectedDirectories.back().toStdString();
+        return {selectedDirectories.back().toStdString()};
     }
     return {};
 }

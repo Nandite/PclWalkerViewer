@@ -3,6 +3,19 @@
 #include <iterator>
 
 namespace algorithm {
+
+    /**
+     *
+     * @tparam I
+     * @tparam S
+     * @tparam Init
+     * @tparam Op
+     * @param begin
+     * @param end
+     * @param init
+     * @param op
+     * @return
+     */
     template<std::input_iterator I, std::sentinel_for<I> S,
             typename Init, typename Op = std::plus<>>
     Init accumulate(I begin, S end, Init init, Op op = Op{}) {
