@@ -9,10 +9,13 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
-#define PLY_EXTENSION ".ply"
-#define PCD_EXTENSION ".pcd"
-
 namespace io {
+
+    inline static const std::string PLY_EXTENSION{".ply"};
+    inline static const std::string PCD_EXTENSION{".pcd"};
+    inline static std::vector<std::filesystem::path> getSupportedFileExtensions() {
+        return {PLY_EXTENSION, PCD_EXTENSION};
+    }
 
     template<std::integral integral>
     class SafeIndex {
@@ -115,7 +118,6 @@ namespace io {
         }
 
     public:
-
         template<std::ranges::input_range Range>
         explicit Loader(const Range &range) :
                 safeIndex(std::make_unique<SafeIndexType>(0, std::ranges::size(range) - 1)) {
