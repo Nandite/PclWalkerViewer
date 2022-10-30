@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <concepts>
 #include <pcl/impl/point_types.hpp>
+#include <utility>
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
@@ -41,49 +42,60 @@ namespace io {
         const integral lowerBound{}, upperBound{};
     };
 
-    template<typename PointT>
-    class LoadInterface {
+    template<typename PointType>
+    struct LoadResult {
+
+        LoadResult(const bool invalidated, const size_t index, std::filesystem::path path,
+                   const typename pcl::PointCloud<PointType>::Ptr &cloud) : invalidated(invalidated), index(index),
+                                                                            path(std::move(path)), cloud(cloud) {}
+
+        const bool invalidated{};
+        const std::size_t index{};
+        const std::filesystem::path path{};
+        const typename pcl::PointCloud<PointType>::Ptr cloud{};
+    };
+
+    template<typename PointType>
+    class CloudLoaderInterface {
     public:
 
         /**
          * @return the current point cloud.
          */
-        virtual std::tuple<std::size_t, typename pcl::PointCloud<PointT>::Ptr> current() = 0;
+        virtual LoadResult<PointType> current() = 0;
 
         /**
          * @return the next point cloud.
          */
-        virtual std::tuple<bool, std::size_t, typename pcl::PointCloud<PointT>::Ptr> next() = 0;
+        virtual LoadResult<PointType> next() = 0;
 
         /**
          * @return the previous point cloud.
          */
-        virtual std::tuple<bool, std::size_t, typename pcl::PointCloud<PointT>::Ptr> previous() = 0;
+        virtual LoadResult<PointType> previous() = 0;
 
-        virtual ~LoadInterface() = default;
+        virtual ~CloudLoaderInterface() = default;
     };
 
-    template<typename PointT>
-    class Loader : public LoadInterface<PointT> {
+    template<typename PointType>
+    class Loader : public CloudLoaderInterface<PointType> {
         using SafeIndexType = SafeIndex<std::size_t>;
     protected:
-        static typename pcl::PointCloud<PointT>::Ptr openAndLoadPlyFile(const std::filesystem::path &path) {
-            typename pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>);
+        static typename pcl::PointCloud<PointType>::Ptr openAndLoadPlyFile(const std::filesystem::path &path) {
+            typename pcl::PointCloud<PointType>::Ptr cloud{new pcl::PointCloud<PointType>};
             pcl::io::loadPLYFile(path.string(), *cloud);
-            std::cout << "Loaded a Ply file with [" << cloud->size() << "] point(s)" << std::endl;
             return cloud;
         }
 
-        static typename pcl::PointCloud<PointT>::Ptr openAndLoadPcdFile(const std::filesystem::path &path) {
-            typename pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>);
+        static typename pcl::PointCloud<PointType>::Ptr openAndLoadPcdFile(const std::filesystem::path &path) {
+            typename pcl::PointCloud<PointType>::Ptr cloud{new pcl::PointCloud<PointType>};
             pcl::io::loadPCDFile(path.string(), *cloud);
-            std::cout << "Loaded a Pcd file with [" << cloud->size() << "] point(s)" << std::endl;
             return cloud;
         }
 
-        static typename pcl::PointCloud<PointT>::Ptr
+        static typename pcl::PointCloud<PointType>::Ptr
         openAndLoadCloudFile(const std::filesystem::path &file) noexcept(false) {
-            typename pcl::PointCloud<PointT>::Ptr cloud{};
+            typename pcl::PointCloud<PointType>::Ptr cloud{};
             const auto extension{file.extension()};
             if (extension == PLY_EXTENSION)
                 return openAndLoadPlyFile(file);
@@ -93,9 +105,9 @@ namespace io {
         }
 
         template<std::ranges::input_range Range>
-        static std::vector<typename pcl::PointCloud<PointT>::Ptr>
+        static std::vector<typename pcl::PointCloud<PointType>::Ptr>
         openAndLoadCloudFromPaths(Range &&files) noexcept(false) {
-            std::vector<typename pcl::PointCloud<PointT>::Ptr> clouds{};
+            std::vector<typename pcl::PointCloud<PointType>::Ptr> clouds{};
             std::ranges::for_each(files, [&clouds](const auto &file) {
                 clouds.push_back(openAndLoadCloudFile(file));
             });
@@ -106,7 +118,7 @@ namespace io {
 
         template<std::ranges::input_range Range>
         explicit Loader(const Range &range) :
-                safeIndex(std::make_unique<SafeIndexType>(0, std::ranges::size(range))) {
+                safeIndex(std::make_unique<SafeIndexType>(0, std::ranges::size(range) - 1)) {
             std::ranges::copy(range, std::back_inserter(files));
         }
 

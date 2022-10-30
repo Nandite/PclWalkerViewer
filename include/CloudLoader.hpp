@@ -1,38 +1,38 @@
 #pragma once
-#include "Loader/Jit.hpp"
+#include "Loader/JustInTime.hpp"
 #include "Loader/Immediate.hpp"
 
 namespace io
 {
     struct NowLoadT{ explicit NowLoadT() = default; };
     struct JitLoadT{ explicit JitLoadT() = default; };
-    constexpr NowLoadT  immediateLoad  = NowLoadT();
-    constexpr JitLoadT  jitLoad  = JitLoadT();
+    constexpr NowLoadT  immediateLoad {NowLoadT()};
+    constexpr JitLoadT  jitLoad {JitLoadT()};
 
-    template<typename PointT>
-    class CloudLoader : public LoadInterface<PointT> {
+    template<typename PointType>
+    class CloudLoader : public CloudLoaderInterface<PointType> {
     public:
 
         template<std::ranges::input_range Range>
-        CloudLoader(const Range &range, NowLoadT)  : pImpl(std::make_unique<Immediate<PointT>>(range)) {}
+        CloudLoader(const Range &range, NowLoadT)  : pImpl(std::make_unique<Immediate<PointType>>(range)) {}
         template<std::ranges::input_range Range>
-        CloudLoader(const Range &range, JitLoadT)  : pImpl(std::make_unique<Jit<PointT>>(range)) {}
+        CloudLoader(const Range &range, JitLoadT)  : pImpl(std::make_unique<JustInTime<PointType>>(range)) {}
         CloudLoader(CloudLoader const&) = delete;
         CloudLoader& operator=(CloudLoader const&) = delete;
 
-        std::tuple<std::size_t, typename pcl::PointCloud<PointT>::Ptr> current() override {
+        io::LoadResult<PointType> current() override {
             return pImpl->current();
         }
 
-        std::tuple<bool, std::size_t , typename pcl::PointCloud<PointT>::Ptr> next() override {
+        io::LoadResult<PointType> next() override {
             return pImpl->next();
         }
 
-        std::tuple<bool, std::size_t , typename pcl::PointCloud<PointT>::Ptr> previous() override {
+        io::LoadResult<PointType> previous() override {
             return pImpl->previous();
         }
 
     private:
-        std::unique_ptr<LoadInterface<PointT>> pImpl{nullptr};
+        std::unique_ptr<CloudLoaderInterface<PointType>> pImpl{nullptr};
     };
 }

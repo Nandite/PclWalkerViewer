@@ -3,7 +3,6 @@
 #include <csignal>
 #include <ranges>
 #include <algorithm>
-#include <QApplication>
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
@@ -34,19 +33,27 @@ bool selectedLoadModeIsSupported(std::string_view mode) {
     return std::ranges::find(allowedModes, mode) == std::ranges::end(allowedModes);
 }
 
+template<typename RandomEngine>
+RGB generateColor(RandomEngine &&engine) {
+    std::uniform_real_distribution<double> distribution{1, 255};
+    return {distribution(engine),
+            distribution(engine),
+            distribution(engine)};
+}
+
 /**
  *
  * @param N
  * @return
  */
-std::vector<RGB> generateColors(const std::size_t N) {
+template<typename RandomEngine>
+std::vector<RGB> generateColors(const std::size_t N, RandomEngine &&engine) {
     std::vector<RGB> colors{N};
     std::uniform_real_distribution<double> distribution{1, 255};
-    std::mt19937 random(std::chrono::system_clock::now().time_since_epoch().count());
-    std::ranges::generate(std::begin(colors), std::end(colors), [&random, &distribution]() -> RGB {
-        return {distribution(random),
-                distribution(random),
-                distribution(random)};
+    std::ranges::generate(std::begin(colors), std::end(colors), [&engine, &distribution]() -> RGB {
+        return {distribution(engine),
+                distribution(engine),
+                distribution(engine)};
     });
     return colors;
 }
@@ -59,7 +66,7 @@ std::vector<RGB> generateColors(const std::size_t N) {
  * @return
  */
 template<typename ... Args>
-auto getLoader(std::string_view mode, Args && ... args) {
+auto getLoader(std::string_view mode, Args &&... args) {
     if (mode == LoadModeNow)
         return std::make_unique<io::CloudLoader<PointType>>(std::forward<Args>(args)..., io::immediateLoad);
     else if (mode == LoadModeJit)
@@ -82,7 +89,6 @@ void drawCloudToScreen(typename pcl::PointCloud<PointType>::Ptr cloud, const RGB
     viewer.removeAllShapes();
     viewer.addPointCloud(cloud, colorHandler, "cloud");
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cloud");
-    std::cout << "Loaded cloud  with [" << cloud->size() << "] points" << std::endl;
 }
 
 auto main(int argc, char **argv) -> int {
@@ -94,14 +100,12 @@ auto main(int argc, char **argv) -> int {
     std::signal(SIGPIPE, LocalizationToolkit::program::printBacktraceAndExitHandler);
     std::signal(SIGTERM, LocalizationToolkit::program::printBacktraceAndExitHandler);
 
-    QApplication qApplication(argc, argv);
-
     boost::program_options::variables_map programOptions{};
     boost::program_options::options_description programOptionsDescriptions{
             "Walk into a directory and and display PCD and PLY clouds. Program usage:", 1024, 512};
 
     programOptionsDescriptions.add_options()("help,h", "Print out how to use the program")(
-            "directory,d", boost::program_options::value<std::string>()->default_value(""),
+            "directory,d", boost::program_options::value<std::string>()->required(),
             "Path of the directory to traverse")
             ("load,l", boost::program_options::value<std::string>()->default_value("jit"),
              "Load the cloud now or just in time (jit or now)");
@@ -115,74 +119,66 @@ auto main(int argc, char **argv) -> int {
     }
     boost::program_options::notify(programOptions);
 
-    const auto directoryToWalkPathAsString{programOptions["directory"].as<std::string>()};
     const auto loadMode{boost::algorithm::to_lower_copy(programOptions["load"].as<std::string>())};
     if (selectedLoadModeIsSupported(loadMode)) {
         std::clog << "Unknown loading mode [" << loadMode << "]" << std::endl;
         return EXIT_FAILURE;
     }
 
-    std::filesystem::path directoryToWalkPath{};
-    if (directoryToWalkPathAsString.empty()) {
-        const auto selectedDirectory{io::selectDirectoryFromDialog("Select a directory to walk through")};
-        if (selectedDirectory.empty()) {
-            std::clog << "No directory has been selected." << std::endl;
-            return EXIT_FAILURE;
-        }
-        directoryToWalkPath = selectedDirectory;
-    } else {
-        directoryToWalkPath = std::filesystem::path(directoryToWalkPathAsString);
-    }
-
-    QCoreApplication::processEvents();
+    const auto directoryToWalkPath{std::filesystem::path{programOptions["directory"].as<std::string>()}};
     const auto supportedExtensions{std::vector<std::filesystem::path>{PCD_EXTENSION, PLY_EXTENSION}};
     const auto &[succeed, files] {io::directoryWalk(directoryToWalkPath, supportedExtensions)};
     if (!succeed) {
-        std::clog << "Could not open the directory [" << directoryToWalkPath << "]" << std::endl;
+        std::clog << "[" << directoryToWalkPath << "] is not a directory or does not exists" << std::endl;
         return EXIT_FAILURE;
     }
     if (files.empty()) {
         std::clog << "Directory [" << directoryToWalkPath << "] does not contains any supported file." << std::endl;
         return EXIT_FAILURE;
     }
-    if (io::checkIfAllFilePathsExist(files)) {
-        std::clog << "Files are missing from [" << directoryToWalkPath << "]." << std::endl;
+    if (!io::checkIfAllFilePathsExist(files)) {
+        // TODO : insert time since file load
+        std::clog << "Walked files are missing from [" << directoryToWalkPath << "]." << std::endl;
         return EXIT_FAILURE;
     }
 
-    std::vector<RGB> colors{generateColors(files.size())};
-    std::unique_ptr<io::CloudLoader<PointType>> cloudLoader{getLoader(loadMode, files)};
+    std::mt19937 random(std::chrono::system_clock::now().time_since_epoch().count());
+    auto colors{generateColors(files.size(), random)};
+    auto cloudLoader{getLoader(loadMode, files)};
 
-    Viewer viewer{"PclWalkerViewer"};
+    Viewer viewer{"Pcl Walker Viewer"};
     viewer.setSize(1280, 1024);
     viewer.setShowFPS(true);
     viewer.setBackgroundColor(0.0f, 0.0f, 0.0f);
-    viewer.addCoordinateSystem(100.0f, 0.0f, 0.0f, 0.0f, "FrameOrigin");
-    viewer.registerKeyboardCallback([&cloudLoader, &colors, &viewer](const auto &event) {
+    viewer.addCoordinateSystem(100.0f, 0.0f, 0.0f, 0.0f, "Origin");
+    viewer.registerKeyboardCallback([&cloudLoader, &colors, &random, &viewer](const auto &event) {
         if (!event.keyDown())
             return;
         if (event.getKeySym() == "Right") {
-            const auto [hasChanged, index, cloud]{cloudLoader->next()};
-            if (!hasChanged) {
+            const auto &result{cloudLoader->next()};
+            if (!result.invalidated) {
                 return;
             }
-            drawCloudToScreen<PointType>(cloud, colors[index], viewer);
+            std::cout << "Loaded [" << result.path << "] with [" << result.cloud->size() << "] point(s)" << std::endl;
+            drawCloudToScreen<PointType>(result.cloud, colors[result.index], viewer);
         } else if (event.getKeySym() == "Left") {
-            const auto [hasChanged, index, cloud]{cloudLoader->previous()};
-            if (!hasChanged) {
+            const auto result{cloudLoader->previous()};
+            if (!result.invalidated) {
                 return;
             }
-            drawCloudToScreen<PointType>(cloud, colors[index], viewer);
+            std::cout << "Loaded [" << result.path << "] with [" << result.cloud->size() << "] point(s)" << std::endl;
+            drawCloudToScreen<PointType>(result.cloud, colors[result.index], viewer);
+        } else if (event.getKeySym() == "d") {
+            const auto result{cloudLoader->current()};
+            colors[result.index] = generateColor(random);
+            drawCloudToScreen<PointType>(result.cloud, colors[result.index], viewer);
         }
     });
 
-    const auto [index, cloud]{cloudLoader->current()};
-    drawCloudToScreen<PointType>(cloud, colors[index], viewer);
+    const auto result{cloudLoader->current()};
+    drawCloudToScreen<PointType>(result.cloud, colors[result.index], viewer);
 
-    while (!viewer.wasStopped()) {
-        QCoreApplication::processEvents();
-        viewer.spinOnce();
-    }
+    viewer.spin();
 
     return EXIT_SUCCESS;
 }

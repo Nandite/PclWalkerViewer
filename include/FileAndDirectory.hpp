@@ -11,13 +11,6 @@
 namespace io {
 
     /**
-     * Open a dialog to select a directory from.
-     * @param title The title of the dialog.
-     * @return The path of the selected directory.
-     */
-    std::filesystem::path selectDirectoryFromDialog(const std::string &title);
-
-    /**
      * Check if all paths pointing to files exists on the file system.
      * @tparam Range An input range of std::path to check.
      * @return True if all files exist, False otherwise.
@@ -52,11 +45,10 @@ namespace io {
                 const auto extension{file.path().extension()};
                 if (std::filesystem::is_regular_file(file) &&
                     (std::ranges::find(extensions, extension) != std::ranges::end(extensions))) {
-                    files.emplace_back(file.path().filename());
+                    files.emplace_back(file.path());
                 }
             }
         } else {
-            std::clog << "[" << directory << "] is not a directory or does not exists" << std::endl;
             return {false, {}};
         }
         return {true, files};

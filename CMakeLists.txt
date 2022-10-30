@@ -24,17 +24,16 @@ find_package(Boost 1.71.0 COMPONENTS program_options REQUIRED)
 include_directories(${Boost_INCLUDE_DIR})
 ############################################################################
 
-find_package(Qt5 COMPONENTS Widgets REQUIRED)
-
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-add_executable(pcl_walker_viewer include src/PclWalkerViewer.cpp src/FileAndDirectory.cpp src/Backtrace.cpp)
+add_executable(pcl_walker_viewer include
+        src/PclWalkerViewer.cpp
+        src/Backtrace.cpp)
 target_link_libraries(pcl_walker_viewer
         ${PCL_LIBRARIES}
         ${Boost_LIBRARIES}
         ${CMAKE_DL_LIBS}
-        Threads::Threads
-        Qt5::Widgets)
+        Threads::Threads)
 
 install(TARGETS pcl_walker_viewer DESTINATION /usr/local/bin)

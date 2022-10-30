@@ -3,9 +3,9 @@
 #include "Loader.hpp"
 
 namespace io {
-    template<typename PointT>
-    class Immediate : public Loader<PointT> {
-        using PointCloud = pcl::PointCloud<PointT>;
+    template<typename PointType>
+    class Immediate : public Loader<PointType> {
+        using PointCloud = pcl::PointCloud<PointType>;
     public:
 
         /**
@@ -13,38 +13,42 @@ namespace io {
          * @param range A Range of path to load.
          */
         template<std::ranges::input_range Range>
-        explicit Immediate(const Range &range) : Loader<PointT>(range),
-                                                 clouds(Loader<PointT>::openAndLoadCloudFromPaths(
-                                                         Loader<PointT>::files)) {}
+        explicit Immediate(const Range &range) : Loader<PointType>(range),
+                                                 clouds(Loader<PointType>::openAndLoadCloudFromPaths(
+                                                         Loader<PointType>::files)) {}
 
         /**
          * @return The current stored point cloud.
          */
-        std::tuple<std::size_t, typename pcl::PointCloud<PointT>::Ptr> current() override {
-            const auto index{(*Loader<PointT>::safeIndex)()};
-            return {index, clouds[index]};
+        LoadResult<PointType> current() override {
+            const auto index{(*Loader<PointType>::safeIndex)()};
+            return {false, index, Loader<PointType>::files[index], clouds[index]};
         }
 
         /**
          * @return the next stored point cloud.
          */
-        std::tuple<bool, std::size_t , typename pcl::PointCloud<PointT>::Ptr> next() override {
-            const auto [hasChanged, index] {++(*Loader<PointT>::safeIndex)};
+        LoadResult<PointType> next() override {
+            const auto [hasChanged, index] {++(*Loader<PointType>::safeIndex)};
+            const auto file{Loader<PointType>::files[index]};
             if (hasChanged) {
-                return {true, index, clouds[index]};
+                const auto cloud{clouds[index]};
+                return {true, index, file, cloud};
             }
-            return {false, index, {}};
+            return {false, index, file, {}};
         }
 
         /**
          * @return the previous stored point cloud.
          */
-        std::tuple<bool, std::size_t , typename pcl::PointCloud<PointT>::Ptr> previous() override {
-            const auto [hasChanged, index] {--(*Loader<PointT>::safeIndex)};
+        LoadResult<PointType> previous() override {
+            const auto [hasChanged, index] {--(*Loader<PointType>::safeIndex)};
+            const auto file{Loader<PointType>::files[index]};
             if (hasChanged) {
-                return {true, index, clouds[index]};
+                const auto cloud{clouds[index]};
+                return {true, index, file, cloud};
             }
-            return {false, index, {}};
+            return {false, index, file, {}};
         }
 
     private:
