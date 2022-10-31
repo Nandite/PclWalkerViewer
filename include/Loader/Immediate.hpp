@@ -21,7 +21,7 @@
 
 #include "Loader.hpp"
 
-namespace io {
+namespace pwv::io {
 
     /**
      * Open and load all the point clouds immediately. The point clouds are then stored in memory.

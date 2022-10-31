@@ -22,7 +22,7 @@
 #include "Loader/JustInTime.hpp"
 #include "Loader/Immediate.hpp"
 
-namespace io
+namespace pwv::io
 {
     struct LoadNowStrategyT{ explicit LoadNowStrategyT() = default; };
     struct LoadJitStrategyT{ explicit LoadJitStrategyT() = default; };

@@ -21,7 +21,7 @@
 
 #include <iterator>
 
-namespace algorithm {
+namespace pwv::algorithm {
 
     /**
      * Range based implementation of the std::accumulate algorithm.

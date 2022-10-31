@@ -27,7 +27,7 @@
 #include "Accumulate.hpp"
 #include <ranges>
 
-namespace io {
+namespace pwv::io {
 
     /**
      * Check if all paths pointing to files exists on the file system.
@@ -40,9 +40,31 @@ namespace io {
                                      [](const auto v, const auto &path) {
                                          const auto exists{std::filesystem::exists(path)};
                                          if (!exists)
-                                             std::clog << "File [" << path << "] does not exists on the filesystem" << std::endl;
+                                             std::clog << "File [" << path << "] does not exists on the filesystem"
+                                                       << std::endl;
                                          return std::logical_and()(v, exists);
                                      });
+    }
+
+    /**
+     *
+     * @tparam Range
+     * @tparam TraverseIterator
+     * @tparam OutputIterator
+     * @param entries
+     * @param extensions
+     * @param output
+     */
+    template<std::ranges::input_range Range, typename TraverseIterator, typename OutputIterator>
+    void traverse(TraverseIterator entries, Range &&extensions, OutputIterator output) {
+        for (const auto & file: entries) {
+            const auto extension{file.path().extension()};
+            if (std::filesystem::is_regular_file(file) &&
+                (std::ranges::find(extensions, extension) != std::ranges::end(extensions))) {
+                *(output) = file.path();
+                output++;
+            }
+        }
     }
 
     /**
@@ -57,20 +79,24 @@ namespace io {
      */
     template<std::ranges::input_range Range>
     std::pair<bool, std::vector<std::filesystem::path>>
-    directoryWalk(const std::filesystem::path &directory, Range &&extensions) {
+    directoryWalk(const std::filesystem::path &directory, const bool recursive, Range &&extensions) {
         std::vector<std::filesystem::path> files{};
         if (std::filesystem::exists(directory) && std::filesystem::is_directory(directory)) {
-            for (auto const &file: std::filesystem::recursive_directory_iterator(directory)) {
-                const auto extension{file.path().extension()};
-                if (std::filesystem::is_regular_file(file) &&
-                    (std::ranges::find(extensions, extension) != std::ranges::end(extensions))) {
-                    files.emplace_back(file.path());
-                }
+
+            if (recursive) {
+                traverse(std::filesystem::recursive_directory_iterator(directory),
+                         std::forward<Range>(extensions),
+                         std::back_insert_iterator(files));
+            } else {
+                traverse(std::filesystem::directory_iterator(directory),
+                         std::forward<Range>(extensions),
+                         std::back_insert_iterator(files));
             }
         } else {
             return {false, {}};
         }
         return {true, files};
     }
+
 
 } // namespace io

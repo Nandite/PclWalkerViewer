@@ -101,9 +101,9 @@ std::vector<RGB> generateColors(const std::size_t N, UniformRandomNumberGenerato
 template<typename ... Args>
 auto getLoader(std::string_view mode, Args &&... args) {
     if (mode == LOAD_MODE_IMMEDIATE)
-        return std::make_unique<io::CloudLoader<PointType>>(std::forward<Args>(args)..., io::immediateLoad);
+        return std::make_unique<pwv::io::CloudLoader<PointType>>(std::forward<Args>(args)..., pwv::io::immediateLoad);
     else if (mode == LOAD_MODE_JIT)
-        return std::make_unique<io::CloudLoader<PointType>>(std::forward<Args>(args)..., io::jitLoad);
+        return std::make_unique<pwv::io::CloudLoader<PointType>>(std::forward<Args>(args)..., pwv::io::jitLoad);
     throw std::runtime_error("Unknown loader type");
 }
 
@@ -132,7 +132,9 @@ auto main(int argc, char **argv) -> int {
 
     programOptionsDescriptions.add_options()("help,h", "Print out how to use the program")(
             "directory,d", boost::program_options::value<std::string>()->required(),
-            "Path of the directory to traverse")
+            "Path of the directory to traverse")(
+            "recursive,r", boost::program_options::bool_switch()->default_value(false),
+            "Traverse the directory recursively")
             ("load,l", boost::program_options::value<std::string>()->default_value(LOAD_MODE_JIT),
              "Load the cloud now or just in time (jit or now)");
     auto parsedProgramOptions{
@@ -152,8 +154,9 @@ auto main(int argc, char **argv) -> int {
     }
 
     const auto directoryToWalkPath{std::filesystem::path{programOptions["directory"].as<std::string>()}};
-    const auto supportedExtensions{io::getSupportedFileExtensions()};
-    const auto &[succeed, files] {io::directoryWalk(directoryToWalkPath, supportedExtensions)};
+    const auto recursive{programOptions["recursive"].as<bool>()};
+    const auto supportedExtensions{pwv::io::getSupportedFileExtensions()};
+    const auto &[succeed, files] {pwv::io::directoryWalk(directoryToWalkPath, recursive, supportedExtensions)};
     if (!succeed) {
         std::clog << "[" << directoryToWalkPath << "] is not a directory or does not exists" << std::endl;
         return EXIT_FAILURE;

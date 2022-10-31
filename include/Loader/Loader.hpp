@@ -28,7 +28,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
-namespace io {
+namespace pwv::io {
 
     inline static const std::string PLY_EXTENSION{".ply"};
     inline static const std::string PCD_EXTENSION{".pcd"};

@@ -21,7 +21,7 @@
 
 #include "Loader.hpp"
 
-namespace io {
+namespace pwv::io {
 
     /**
      * Open and load clouds on the go. This loader saves memory as the cloud are only opened
