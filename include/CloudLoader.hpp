@@ -40,15 +40,15 @@ namespace pwv::io
         CloudLoader(CloudLoader const&) = delete;
         CloudLoader& operator=(CloudLoader const&) = delete;
 
-        io::LoadResult<PointType> current() override {
+        LoadResult<PointType> current() override {
             return pImpl->current();
         }
 
-        io::LoadResult<PointType> next() override {
+        LoadResult<PointType> next() override {
             return pImpl->next();
         }
 
-        io::LoadResult<PointType> previous() override {
+        LoadResult<PointType> previous() override {
             return pImpl->previous();
         }
 
