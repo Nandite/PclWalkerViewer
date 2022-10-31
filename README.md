@@ -1,3 +1,5 @@
+![](res/logo_pcl.png)
+
 PclWalkerViewer
 ===============
 
