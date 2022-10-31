@@ -20,13 +20,13 @@
 #pragma once
 
 #include <filesystem>
-#include <concepts>
 #include <pcl/impl/point_types.hpp>
 #include <utility>
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include "BoundedIndex.hpp"
 
 namespace pwv::io {
 
@@ -39,41 +39,6 @@ namespace pwv::io {
     inline static std::vector<std::filesystem::path> getSupportedFileExtensions() {
         return {PLY_EXTENSION, PCD_EXTENSION};
     }
-
-    /**
-     * A bounded integral index class [min, max] providing post incrementation and decrementation operators.
-     * @tparam integral The underlying integral type of the index.
-     */
-    template<std::integral integral>
-    class BoundedIndex {
-    public:
-        explicit BoundedIndex(integral min = std::numeric_limits<integral>::min(),
-                              integral max = std::numeric_limits<integral>::max()) :
-                lowerBound(min), upperBound(max), index(min) {
-            static_assert(max >= min, "min mus be > or equals to max");
-        }
-
-        inline integral operator()() const {
-            return index;
-        }
-
-        std::tuple<bool, integral> operator++() {
-            if (index >= upperBound)
-                return {false, upperBound};
-            return {true, ++index};
-        }
-
-        std::tuple<bool, integral> operator--() {
-            if (index <= lowerBound)
-                return {false, lowerBound};
-            return {true, --index};
-        }
-
-    private:
-        integral index{};
-        const integral lowerBound{};
-        const integral upperBound{};
-    };
 
     template<typename PointType>
     struct LoadResult {
@@ -177,7 +142,7 @@ namespace pwv::io {
     public:
         template<std::ranges::input_range Range>
         explicit Loader(const Range &range) :
-                safeIndex(std::make_unique<SafeIndexType>(0, std::ranges::size(range) - 1)) {
+                safeIndex(std::make_unique<SafeIndexType>(0, 1, 0, std::ranges::size(range) - 1)) {
             std::ranges::copy(range, std::back_inserter(files));
             if (!allFilesFromRangeExist(files)) {
                 std::clog << "File(s) from the range is/are are not on the filesystem anymore." << std::endl;

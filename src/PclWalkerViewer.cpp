@@ -29,6 +29,7 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include "FileAndDirectory.hpp"
 #include "CloudLoader.hpp"
+#include "BoundedIndex.hpp"
 
 using RGB = std::tuple<double, double, double>;
 using PointType = pcl::PointXYZ;
@@ -41,10 +42,14 @@ inline const std::string LOAD_MODE_JIT{"jit"};
 inline const std::string NEXT_CLOUD_KEY_SYM{"Right"};
 inline const std::string PREVIOUS_CLOUD_KEY_SYM{"Left"};
 inline const std::string CHANGE_CLOUD_COLOR_KEY_SYM{"d"};
+inline const std::string TOGGLE_ORIGIN_COORD_SYSTEM_KEY_SYM{"t"};
+inline const std::string INCREASE_ORIGIN_COORD_KEY_SYM{"Up"};
+inline const std::string DECREASE_ORIGIN_COORD_KEY_SYM{"Down"};
 
 inline const std::string APPLICATION_NAME{"Pcl Walker Viewer"};
 
 inline const std::string CLOUD_ID{"cloud"};
+inline const std::string ORIGIN_COORD_ID{"origin"};
 
 /**
  * Check if the selected load strategy is supported by the application.
@@ -169,37 +174,55 @@ auto main(int argc, char **argv) -> int {
     std::mt19937 random(std::chrono::system_clock::now().time_since_epoch().count());
     auto colors{generateColors(files.size(), random)};
     auto cloudLoader{getLoader(loadMode, files)};
+    auto showOrigin{true};
+    pwv::BoundedIndex<std::uint32_t> originSize{1, 1, 1};
 
     Viewer viewer{APPLICATION_NAME};
     viewer.setSize(1280, 1024);
     viewer.setShowFPS(true);
     viewer.setBackgroundColor(0.0f, 0.0f, 0.0f);
-    viewer.addCoordinateSystem(100.0f, 0.0f, 0.0f, 0.0f, "Origin");
-    viewer.registerKeyboardCallback([&cloudLoader, &colors, &random, &viewer](const auto &event) {
-        if (!event.keyDown())
-            return;
-        if (event.getKeySym() == NEXT_CLOUD_KEY_SYM) {
-            const auto &result{cloudLoader->next()};
-            if (!result.invalidated) {
-                return;
-            }
-            std::cout << "Loaded [" << result.path << "] with [" << result.cloud->size() << "] point(s)"
-                      << std::endl;
-            drawCloudToScreen<PointType>(result.cloud, colors[result.index], viewer);
-        } else if (event.getKeySym() == PREVIOUS_CLOUD_KEY_SYM) {
-            const auto result{cloudLoader->previous()};
-            if (!result.invalidated) {
-                return;
-            }
-            std::cout << "Loaded [" << result.path << "] with [" << result.cloud->size() << "] point(s)"
-                      << std::endl;
-            drawCloudToScreen<PointType>(result.cloud, colors[result.index], viewer);
-        } else if (event.getKeySym() == CHANGE_CLOUD_COLOR_KEY_SYM) {
-            const auto result{cloudLoader->current()};
-            colors[result.index] = generateColor(random);
-            drawCloudToScreen<PointType>(result.cloud, colors[result.index], viewer);
-        }
-    });
+    viewer.addCoordinateSystem(originSize(), 0.0f, 0.0f, 0.0f, ORIGIN_COORD_ID);
+    viewer.registerKeyboardCallback(
+            [&cloudLoader, &colors, &random, &viewer, &showOrigin, &originSize](const auto &event) {
+                if (!event.keyDown())
+                    return;
+                if (event.getKeySym() == NEXT_CLOUD_KEY_SYM) {
+                    const auto &result{cloudLoader->next()};
+                    if (!result.invalidated) {
+                        return;
+                    }
+                    std::cout << "Loaded [" << result.path << "] with [" << result.cloud->size() << "] point(s)"
+                              << std::endl;
+                    drawCloudToScreen<PointType>(result.cloud, colors[result.index], viewer);
+                } else if (event.getKeySym() == PREVIOUS_CLOUD_KEY_SYM) {
+                    const auto result{cloudLoader->previous()};
+                    if (!result.invalidated) {
+                        return;
+                    }
+                    std::cout << "Loaded [" << result.path << "] with [" << result.cloud->size() << "] point(s)"
+                              << std::endl;
+                    drawCloudToScreen<PointType>(result.cloud, colors[result.index], viewer);
+                } else if (event.getKeySym() == CHANGE_CLOUD_COLOR_KEY_SYM) {
+                    const auto result{cloudLoader->current()};
+                    colors[result.index] = generateColor(random);
+                    drawCloudToScreen<PointType>(result.cloud, colors[result.index], viewer);
+                } else if (event.getKeySym() == TOGGLE_ORIGIN_COORD_SYSTEM_KEY_SYM) {
+                    const auto state{std::exchange(showOrigin, !showOrigin)};
+                    if (state) {
+                        viewer.removeCoordinateSystem(ORIGIN_COORD_ID);
+                    } else {
+                        viewer.addCoordinateSystem(originSize(), 0.0f, 0.0f, 0.0f, ORIGIN_COORD_ID);
+                    }
+                } else if (event.getKeySym() == INCREASE_ORIGIN_COORD_KEY_SYM && showOrigin) {
+                    ++originSize;
+                    viewer.removeCoordinateSystem(ORIGIN_COORD_ID);
+                    viewer.addCoordinateSystem(originSize(), 0.0f, 0.0f, 0.0f, ORIGIN_COORD_ID);
+                } else if (event.getKeySym() == DECREASE_ORIGIN_COORD_KEY_SYM && showOrigin) {
+                    --originSize;
+                    viewer.removeCoordinateSystem(ORIGIN_COORD_ID);
+                    viewer.addCoordinateSystem(originSize(), 0.0f, 0.0f, 0.0f, ORIGIN_COORD_ID);
+                }
+            });
 
     const auto result{cloudLoader->current()};
     drawCloudToScreen<PointType>(result.cloud, colors[result.index], viewer);
