@@ -41,7 +41,7 @@ You can control the viewer using the following inputs of the keyboard:
 - [d] to change the color of the cloud
 - [t] to toggle the display of origin coordinate system
 - [Up] to increase the size of the origin coordinate system
-- [Down] to increase the size of the origin coordinate system
+- [Down] to decrease the size of the origin coordinate system
 
 ### Load strategy
 
