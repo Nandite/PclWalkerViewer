@@ -120,7 +120,7 @@ namespace pwv::io {
          * @param file path of the file to open.
          * @return a cloud with the content of the file.
          */
-        static typename pcl::PointCloud<PointType>::Ptr openAndLoadPlyFile(const std::filesystem::path & file) {
+        static typename pcl::PointCloud<PointType>::Ptr openAndLoadPlyFile(const std::filesystem::path &file) {
             typename pcl::PointCloud<PointType>::Ptr cloud{new pcl::PointCloud<PointType>};
             pcl::io::loadPLYFile(file.string(), *cloud);
             return cloud;
@@ -145,8 +145,7 @@ namespace pwv::io {
         static typename pcl::PointCloud<PointType>::Ptr
         openAndLoadCloudFile(const std::filesystem::path &file) noexcept(false) {
             typename pcl::PointCloud<PointType>::Ptr cloud{};
-            if(!std::filesystem::exists(file))
-            {
+            if (!std::filesystem::exists(file)) {
                 std::clog << "[" << file << "] does not exists on the filesystem." << std::endl;
                 return {};
             }
