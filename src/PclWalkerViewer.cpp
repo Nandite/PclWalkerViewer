@@ -140,7 +140,7 @@ std::string getKeymapDescription() {
            "] to toggle the display of origin coordinate system\n"
            "- [" + INCREASE_ORIGIN_COORD_KEY_SYM + "] to increase the size of the origin coordinate system\n"
                                                    "- [" + DECREASE_ORIGIN_COORD_KEY_SYM +
-           "] to increase the size of the origin coordinate system\n";
+           "] to decrease the size of the origin coordinate system\n";
 }
 
 auto main(int argc, char **argv) -> int {
