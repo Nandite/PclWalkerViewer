@@ -36,8 +36,8 @@ using PointType = pcl::PointXYZ;
 using ColorHandler = pcl::visualization::PointCloudColorHandlerCustom<PointType>;
 using Viewer = pcl::visualization::PCLVisualizer;
 
-inline const std::string LOAD_MODE_IMMEDIATE{"now"};
-inline const std::string LOAD_MODE_JIT{"jit"};
+inline const std::string LOAD_STRATEGY_IMMEDIATE{"immediate"};
+inline const std::string LOAD_STRATEGY_JIT{"jit"};
 
 inline const std::string NEXT_CLOUD_KEY_SYM{"Right"};
 inline const std::string PREVIOUS_CLOUD_KEY_SYM{"Left"};
@@ -53,12 +53,12 @@ inline const std::string ORIGIN_COORD_ID{"origin"};
 
 /**
  * Check if the selected load strategy is supported by the application.
- * @param mode The load strategy selected to test.
+ * @param strategy The load strategy selected to test.
  * @return True if a load strategy is supported and implemented, False otherwise.
  */
-bool selectedLoadModeIsSupported(std::string_view mode) {
-    std::array<std::string, 2> allowedModes{LOAD_MODE_IMMEDIATE, LOAD_MODE_JIT};
-    return std::ranges::find(allowedModes, mode) == std::ranges::end(allowedModes);
+bool selectedLoadStrategyIsSupported(std::string_view strategy) {
+    std::array<std::string, 2> allowedStrategies{LOAD_STRATEGY_IMMEDIATE, LOAD_STRATEGY_JIT};
+    return std::ranges::find(allowedStrategies, strategy) == std::ranges::end(allowedStrategies);
 }
 
 /**
@@ -97,17 +97,17 @@ std::vector<RGB> generateColors(const std::size_t N, UniformRandomNumberGenerato
 }
 
 /**
- * Get the appropriate Loader depending on the load mode.
+ * Get the appropriate Loader depending on the load strategy.
  * @tparam Args The arguments types of the loader to construct.
- * @param mode The cloud loading mode desired ("jit" or "immediate")
+ * @param strategy The cloud loading strategy desired ("jit" or "immediate")
  * @param args The arguments of the loader (forwarded to the constructor call).
  * @return An instance of CloudLoader using the requested strategy to load the clouds from the filesystem.
  */
 template<typename ... Args>
-auto getLoader(std::string_view mode, Args &&... args) {
-    if (mode == LOAD_MODE_IMMEDIATE)
+auto getLoader(std::string_view strategy, Args &&... args) {
+    if (strategy == LOAD_STRATEGY_IMMEDIATE)
         return std::make_unique<pwv::io::CloudLoader<PointType>>(std::forward<Args>(args)..., pwv::io::immediateLoad);
-    else if (mode == LOAD_MODE_JIT)
+    else if (strategy == LOAD_STRATEGY_JIT)
         return std::make_unique<pwv::io::CloudLoader<PointType>>(std::forward<Args>(args)..., pwv::io::jitLoad);
     throw std::runtime_error("Unknown loader type");
 }
@@ -129,6 +129,9 @@ void drawCloudToScreen(typename pcl::PointCloud<PointType>::Ptr cloud, const RGB
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, CLOUD_ID);
 }
 
+/**
+ * @return the use description of the keyboard.
+ */
 std::string getKeymapDescription() {
     return "You can control the viewer using the following inputs of the keyboard:\n"
            "- [<-] [->] (Left or Right arrow) to display the previous/next cloud\n"
@@ -151,7 +154,7 @@ auto main(int argc, char **argv) -> int {
             "Path of the directory to traverse")(
             "recursive,r", boost::program_options::bool_switch()->default_value(false),
             "Traverse the directory recursively")
-            ("load,l", boost::program_options::value<std::string>()->default_value(LOAD_MODE_JIT),
+            ("strategy,s", boost::program_options::value<std::string>()->default_value(LOAD_STRATEGY_JIT),
              "Load the cloud now or just in time (jit or now)");
     auto parsedProgramOptions{
             boost::program_options::command_line_parser(argc, argv).options(programOptionsDescriptions).run()};
@@ -164,9 +167,9 @@ auto main(int argc, char **argv) -> int {
     }
     boost::program_options::notify(programOptions);
 
-    const auto loadMode{boost::algorithm::to_lower_copy(programOptions["load"].as<std::string>())};
-    if (selectedLoadModeIsSupported(loadMode)) {
-        std::clog << "Unknown loading mode [" << loadMode << "]" << std::endl;
+    const auto loadStrategy{boost::algorithm::to_lower_copy(programOptions["strategy"].as<std::string>())};
+    if (selectedLoadStrategyIsSupported(loadStrategy)) {
+        std::clog << "Unknown loading strategy [" << loadStrategy << "]" << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -185,7 +188,7 @@ auto main(int argc, char **argv) -> int {
 
     std::mt19937 random(std::chrono::system_clock::now().time_since_epoch().count());
     auto colors{generateColors(files.size(), random)};
-    auto cloudLoader{getLoader(loadMode, files)};
+    auto cloudLoader{getLoader(loadStrategy, files)};
     auto showOrigin{true};
     pwv::BoundedIndex<std::uint32_t> originSize{1, 1, 1};
 
