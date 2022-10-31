@@ -13,16 +13,26 @@ namespace io {
 
     inline static const std::string PLY_EXTENSION{".ply"};
     inline static const std::string PCD_EXTENSION{".pcd"};
+
+    /**
+     * @return Get the list of cloud file extensions supported by the application.
+     */
     inline static std::vector<std::filesystem::path> getSupportedFileExtensions() {
         return {PLY_EXTENSION, PCD_EXTENSION};
     }
 
+    /**
+     * A bounded integral index class [min, max] providing post incrementation and decrementation operators.
+     * @tparam integral The underlying integral type of the index.
+     */
     template<std::integral integral>
-    class SafeIndex {
+    class BoundedIndex {
     public:
-        explicit SafeIndex(integral min = std::numeric_limits<integral>::min(),
-                           integral max = std::numeric_limits<integral>::max()) :
-                lowerBound(min), upperBound(max) {}
+        explicit BoundedIndex(integral min = std::numeric_limits<integral>::min(),
+                              integral max = std::numeric_limits<integral>::max()) :
+                lowerBound(min), upperBound(max), index(min) {
+            static_assert(max >= min, "min mus be > or equals to max");
+        }
 
         inline integral operator()() const {
             return index;
@@ -31,18 +41,19 @@ namespace io {
         std::tuple<bool, integral> operator++() {
             if (index >= upperBound)
                 return {false, upperBound};
-            return {true, (++index)};
+            return {true, ++index};
         }
 
         std::tuple<bool, integral> operator--() {
             if (index <= lowerBound)
                 return {false, lowerBound};
-            return {true, (--index)};
+            return {true, --index};
         }
 
     private:
         integral index{};
-        const integral lowerBound{}, upperBound{};
+        const integral lowerBound{};
+        const integral upperBound{};
     };
 
     template<typename PointType>
@@ -82,23 +93,44 @@ namespace io {
 
     template<typename PointType>
     class Loader : public CloudLoaderInterface<PointType> {
-        using SafeIndexType = SafeIndex<std::size_t>;
+        using SafeIndexType = BoundedIndex<std::size_t>;
     protected:
-        static typename pcl::PointCloud<PointType>::Ptr openAndLoadPlyFile(const std::filesystem::path &path) {
+
+        /**
+         * Open and load a cloud from a ply file.
+         * @param file path of the file to open.
+         * @return a cloud with the content of the file.
+         */
+        static typename pcl::PointCloud<PointType>::Ptr openAndLoadPlyFile(const std::filesystem::path & file) {
             typename pcl::PointCloud<PointType>::Ptr cloud{new pcl::PointCloud<PointType>};
-            pcl::io::loadPLYFile(path.string(), *cloud);
+            pcl::io::loadPLYFile(file.string(), *cloud);
             return cloud;
         }
 
-        static typename pcl::PointCloud<PointType>::Ptr openAndLoadPcdFile(const std::filesystem::path &path) {
+        /**
+         * Open and load a cloud from a pcd file.
+         * @param file path of the file to open.
+         * @return a cloud with the content of the file.
+         */
+        static typename pcl::PointCloud<PointType>::Ptr openAndLoadPcdFile(const std::filesystem::path &file) {
             typename pcl::PointCloud<PointType>::Ptr cloud{new pcl::PointCloud<PointType>};
-            pcl::io::loadPCDFile(path.string(), *cloud);
+            pcl::io::loadPCDFile(file.string(), *cloud);
             return cloud;
         }
 
+        /**
+         * Open and load a cloud. The type of file to load is inferred by the extension.
+         * @param file path of the file to open (ply or pcd).
+         * @return a cloud with the content of the file.
+         */
         static typename pcl::PointCloud<PointType>::Ptr
         openAndLoadCloudFile(const std::filesystem::path &file) noexcept(false) {
             typename pcl::PointCloud<PointType>::Ptr cloud{};
+            if(!std::filesystem::exists(file))
+            {
+                std::clog << "[" << file << "] does not exists on the filesystem." << std::endl;
+                return {};
+            }
             const auto extension{file.extension()};
             if (extension == PLY_EXTENSION)
                 return openAndLoadPlyFile(file);
@@ -107,6 +139,13 @@ namespace io {
             throw std::runtime_error("Unsupported cloud file extension.");
         }
 
+        /**
+         * Given a range of file, open and load all the clouds and store them in a sequence.
+         * @tparam Range A range meeting the input_range concept and containing std::filesystem::path.
+         * @param files The range of file to open and load.
+         * @return a sequence of cloud each one containing the data of a file of the range. The clouds are
+         * ordered according to the order of the range of files.
+         */
         template<std::ranges::input_range Range>
         static std::vector<typename pcl::PointCloud<PointType>::Ptr>
         openAndLoadCloudFromPaths(Range &&files) noexcept(false) {
@@ -122,6 +161,9 @@ namespace io {
         explicit Loader(const Range &range) :
                 safeIndex(std::make_unique<SafeIndexType>(0, std::ranges::size(range) - 1)) {
             std::ranges::copy(range, std::back_inserter(files));
+            if (!allFilesFromRangeExist(files)) {
+                std::clog << "File(s) from the range is/are are not on the filesystem anymore." << std::endl;
+            }
         }
 
         virtual ~Loader() = default;

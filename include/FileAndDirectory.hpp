@@ -16,12 +16,12 @@ namespace io {
      * @return True if all files exist, False otherwise.
      */
     template<std::ranges::input_range Range>
-    bool checkIfAllFilePathsExist(Range &&range) {
+    bool allFilesFromRangeExist(Range &&range) {
         return algorithm::accumulate(std::ranges::begin(range), std::ranges::end(range), true,
                                      [](const auto v, const auto &path) {
                                          const auto exists{std::filesystem::exists(path)};
                                          if (!exists)
-                                             std::clog << "File [" << path << "] does not exists" << std::endl;
+                                             std::clog << "File [" << path << "] does not exists on the filesystem" << std::endl;
                                          return std::logical_and()(v, exists);
                                      });
     }

@@ -3,6 +3,12 @@
 #include "Loader.hpp"
 
 namespace io {
+
+    /**
+     * Open and load all the point clouds immediately. The point clouds are then stored in memory.
+     * This strategy causes more memory consumption, however, it is way faster than opening the file
+     * and loading the point cloud whenever the CloudLoaderInterface's methods are called.
+     */
     template<typename PointType>
     class Immediate : public Loader<PointType> {
         using PointCloud = pcl::PointCloud<PointType>;

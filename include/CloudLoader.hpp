@@ -4,19 +4,19 @@
 
 namespace io
 {
-    struct NowLoadT{ explicit NowLoadT() = default; };
-    struct JitLoadT{ explicit JitLoadT() = default; };
-    constexpr NowLoadT  immediateLoad {NowLoadT()};
-    constexpr JitLoadT  jitLoad {JitLoadT()};
+    struct LoadNowStrategyT{ explicit LoadNowStrategyT() = default; };
+    struct LoadJitStrategyT{ explicit LoadJitStrategyT() = default; };
+    constexpr LoadNowStrategyT  immediateLoad {LoadNowStrategyT()};
+    constexpr LoadJitStrategyT  jitLoad {LoadJitStrategyT()};
 
     template<typename PointType>
     class CloudLoader : public CloudLoaderInterface<PointType> {
     public:
 
         template<std::ranges::input_range Range>
-        CloudLoader(const Range &range, NowLoadT)  : pImpl(std::make_unique<Immediate<PointType>>(range)) {}
+        CloudLoader(const Range &range, LoadNowStrategyT)  : pImpl(std::make_unique<Immediate<PointType>>(range)) {}
         template<std::ranges::input_range Range>
-        CloudLoader(const Range &range, JitLoadT)  : pImpl(std::make_unique<JustInTime<PointType>>(range)) {}
+        CloudLoader(const Range &range, LoadJitStrategyT)  : pImpl(std::make_unique<JustInTime<PointType>>(range)) {}
         CloudLoader(CloudLoader const&) = delete;
         CloudLoader& operator=(CloudLoader const&) = delete;
 

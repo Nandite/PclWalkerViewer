@@ -3,6 +3,12 @@
 #include "Loader.hpp"
 
 namespace io {
+
+    /**
+     * Open and load clouds on the go. This loader saves memory as the cloud are only opened
+     * when needed through the CloudLoaderInterface methods. However, it incurs a time penalty
+     * as the file have to be opened and the point cloud loaded before returning to the caller.
+     */
     template<typename PointType>
     class JustInTime : public Loader<PointType> {
         using LoaderType = Loader<PointType>;

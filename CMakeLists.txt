@@ -11,7 +11,7 @@ add_compile_options(-Wall -Wextra)
 include_directories(include)
 set(PROJECT_SOURCES include
         src/PclWalkerViewer.cpp
-        src/Backtrace.cpp)
+        )
 
 # PCL Package ##############################################################
 find_package(PCL 1.9 REQUIRED)
@@ -35,7 +35,6 @@ add_executable(pcl_walker_viewer ${PROJECT_SOURCES})
 target_link_libraries(pcl_walker_viewer PRIVATE
         ${PCL_LIBRARIES}
         ${Boost_LIBRARIES}
-        ${CMAKE_DL_LIBS}
         Threads::Threads)
 
 install(TARGETS pcl_walker_viewer DESTINATION /usr/local/bin)

@@ -9,7 +9,6 @@
 #include <boost/algorithm/string.hpp>
 #include <pcl/visualization/pcl_visualizer.h>
 #include "FileAndDirectory.hpp"
-#include "Backtrace.hpp"
 #include "CloudLoader.hpp"
 
 using RGB = std::tuple<double, double, double>;
@@ -29,9 +28,9 @@ inline const std::string APPLICATION_NAME{"Pcl Walker Viewer"};
 inline const std::string CLOUD_ID{"cloud"};
 
 /**
- *
- * @param mode
- * @return
+ * Check if the selected load strategy is supported by the application.
+ * @param mode The load strategy selected to test.
+ * @return True if a load strategy is supported and implemented, False otherwise.
  */
 bool selectedLoadModeIsSupported(std::string_view mode) {
     std::array<std::string, 2> allowedModes{LOAD_MODE_IMMEDIATE, LOAD_MODE_JIT};
@@ -39,10 +38,10 @@ bool selectedLoadModeIsSupported(std::string_view mode) {
 }
 
 /**
- *
- * @tparam UniformRandomNumberGenerator
- * @param numberGenerator
- * @return
+ * Generate a random RGB color.
+ * @tparam UniformRandomNumberGenerator type meeting the requirements of UniformRandomBitGenerator.
+ * @param numberGenerator a random generator to use to generate the color.
+ * @return A random RGB color object.
  */
 template<typename UniformRandomNumberGenerator>
 RGB generateColor(UniformRandomNumberGenerator &&numberGenerator) {
@@ -54,11 +53,11 @@ RGB generateColor(UniformRandomNumberGenerator &&numberGenerator) {
 }
 
 /**
- *
- * @tparam UniformRandomNumberGenerator
- * @param N
- * @param numberGenerator
- * @return
+ * Randomly generate a continuous sequence of RGB colors.
+ * @tparam UniformRandomNumberGenerator type meeting the requirements of UniformRandomBitGenerator.
+ * @param N The number of color to generate.
+ * @param numberGenerator a random generator to use to generate the color.
+ * @return A sequence of random color objects.
  */
 template<typename UniformRandomNumberGenerator>
 std::vector<RGB> generateColors(const std::size_t N, UniformRandomNumberGenerator &&numberGenerator) {
@@ -108,13 +107,6 @@ void drawCloudToScreen(typename pcl::PointCloud<PointType>::Ptr cloud, const RGB
 
 auto main(int argc, char **argv) -> int {
 
-    std::signal(SIGSEGV, LocalizationToolkit::program::printBacktraceAndExitHandler);
-    std::signal(SIGABRT, LocalizationToolkit::program::printBacktraceAndExitHandler);
-    std::signal(SIGILL, LocalizationToolkit::program::printBacktraceAndExitHandler);
-    std::signal(SIGFPE, LocalizationToolkit::program::printBacktraceAndExitHandler);
-    std::signal(SIGPIPE, LocalizationToolkit::program::printBacktraceAndExitHandler);
-    std::signal(SIGTERM, LocalizationToolkit::program::printBacktraceAndExitHandler);
-
     boost::program_options::variables_map programOptions{};
     boost::program_options::options_description programOptionsDescriptions{
             "Walk into a directory and and display PCD and PLY clouds. Program usage:", 1024, 512};
@@ -149,11 +141,6 @@ auto main(int argc, char **argv) -> int {
     }
     if (files.empty()) {
         std::clog << "Directory [" << directoryToWalkPath << "] does not contains any supported file." << std::endl;
-        return EXIT_FAILURE;
-    }
-    if (!io::checkIfAllFilePathsExist(files)) {
-        // TODO : insert time since file load
-        std::clog << "Walked files are missing from [" << directoryToWalkPath << "]." << std::endl;
         return EXIT_FAILURE;
     }
 
