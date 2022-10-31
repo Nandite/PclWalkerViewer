@@ -1,7 +1,7 @@
-![](res/logo_pcl.png)
-
 PclWalkerViewer
 ===============
+
+<img src="res/logo_pcl.png" width="200" height="75" />
 
 PclWalkerViewer is a C++20 utility executable that walk (recursively on demand) a directory and sequentially display
 the point clouds its contains into a PCL 3D viewer. It supports PCD and PLY format.
