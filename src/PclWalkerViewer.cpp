@@ -129,6 +129,17 @@ void drawCloudToScreen(typename pcl::PointCloud<PointType>::Ptr cloud, const RGB
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, CLOUD_ID);
 }
 
+std::string getKeymapDescription() {
+    return "You can control the viewer using the following inputs of the keyboard:\n"
+           "- [<-] [->] (Left or Right arrow) to display the previous/next cloud\n"
+           "- [" + CHANGE_CLOUD_COLOR_KEY_SYM + "] to change the color of the cloud\n"
+                                                "- [" + TOGGLE_ORIGIN_COORD_SYSTEM_KEY_SYM +
+           "] to toggle the display of origin coordinate system\n"
+           "- [" + INCREASE_ORIGIN_COORD_KEY_SYM + "] to increase the size of the origin coordinate system\n"
+                                                   "- [" + DECREASE_ORIGIN_COORD_KEY_SYM +
+           "] to increase the size of the origin coordinate system\n";
+}
+
 auto main(int argc, char **argv) -> int {
 
     boost::program_options::variables_map programOptions{};
@@ -148,6 +159,7 @@ auto main(int argc, char **argv) -> int {
     const auto isHelpRequested{programOptions.count("help") > 0};
     if (isHelpRequested) {
         std::cout << programOptionsDescriptions << std::endl;
+        std::cout << getKeymapDescription() << std::endl;
         return EXIT_SUCCESS;
     }
     boost::program_options::notify(programOptions);
