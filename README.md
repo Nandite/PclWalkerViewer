@@ -73,6 +73,15 @@ or
 pcl_walker_viewer -r -d /directory/to/walk -s jit
 ```
 
+### Auto focus
+
+Using the option _**--auto-focus**_, the camera will automatically focus on a cloud when
+loaded. This functionality is disabled by default.
+
+```sh
+pcl_walker_viewer -r -d /directory/to/walk --auto-focus
+```
+
 ## Dependencies
 
 - At least [Point Cloud Libary](https://www.pointclouds.org/) 1.9.

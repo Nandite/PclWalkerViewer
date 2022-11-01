@@ -27,6 +27,7 @@
 #include <boost/program_options/variables_map.hpp>
 #include <boost/algorithm/string.hpp>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <vtkCamera.h>
 #include "FileAndDirectory.hpp"
 #include "CloudLoader.hpp"
 #include "BoundedIndex.hpp"
@@ -113,6 +114,22 @@ auto getLoader(std::string_view strategy, Args &&... args) {
 }
 
 /**
+ * Focus the Camera on the displayed cloud.
+ */
+void focusCamera(Viewer &viewer) {
+    auto renderWindow{viewer.getRenderWindow()};
+    auto windowInteractor{renderWindow->GetInteractor()};
+    auto interactor{viewer.getInteractorStyle()};
+    auto eventPosition{windowInteractor->GetEventPosition()};
+    interactor->FindPokedRenderer(eventPosition[0], eventPosition[1]);
+    auto currentRenderer{interactor->GetCurrentRenderer()};
+    if (currentRenderer) {
+        currentRenderer->ResetCamera();
+        currentRenderer->Render();
+    }
+}
+
+/**
  * Draw a point cloud to the screen. All previous cloud drawn are removed beforehand.
  * @tparam PointType The type of the point to draw.
  * @param cloud The cloud to draw to the screen.
@@ -120,13 +137,17 @@ auto getLoader(std::string_view strategy, Args &&... args) {
  * @param viewer The viewer to draw the cloud into.
  */
 template<typename PointType>
-void drawCloudToScreen(typename pcl::PointCloud<PointType>::Ptr cloud, const RGB &color, Viewer &viewer) {
+void drawCloudToScreen(typename pcl::PointCloud<PointType>::Ptr cloud, const RGB &color, const bool autoFocus,
+                       Viewer &viewer) {
     const auto [r, g, b]{color};
     ColorHandler colorHandler{cloud, r, g, b};
     viewer.removeAllPointClouds();
     viewer.removeAllShapes();
     viewer.addPointCloud(cloud, colorHandler, CLOUD_ID);
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, CLOUD_ID);
+    if (autoFocus) {
+        focusCamera(viewer);
+    }
 }
 
 /**
@@ -153,7 +174,9 @@ auto main(int argc, char **argv) -> int {
             "directory,d", boost::program_options::value<std::string>()->required(),
             "Path of the directory to traverse")(
             "recursive,r", boost::program_options::bool_switch()->default_value(false),
-            "Traverse the directory recursively")
+            "Traverse the directory recursively")(
+            "auto-focus", boost::program_options::bool_switch()->default_value(false),
+            "Automatically focus the camera on a cloud when loaded")
             ("strategy,s", boost::program_options::value<std::string>()->default_value(LOAD_STRATEGY_JIT),
              "Select a loading strategy for the clouds into memory (jit or immediate)");
     auto parsedProgramOptions{
@@ -181,6 +204,7 @@ auto main(int argc, char **argv) -> int {
 
     const auto directoryToWalkPath{std::filesystem::path{programOptions["directory"].as<std::string>()}};
     const auto recursive{programOptions["recursive"].as<bool>()};
+    const auto autoFocus{programOptions["auto-focus"].as<bool>()};
     const auto supportedExtensions{pwv::io::getSupportedFileExtensions()};
     const auto &[succeed, files] {pwv::io::directoryWalk(directoryToWalkPath, recursive, supportedExtensions)};
     if (!succeed) {
@@ -204,7 +228,7 @@ auto main(int argc, char **argv) -> int {
     viewer.setBackgroundColor(0.0f, 0.0f, 0.0f);
     viewer.addCoordinateSystem(originSize(), 0.0f, 0.0f, 0.0f, ORIGIN_COORD_ID);
     viewer.registerKeyboardCallback(
-            [&cloudLoader, &colors, &random, &viewer, &showOrigin, &originSize](const auto &event) {
+            [&cloudLoader, &colors, &random, &viewer, &showOrigin, &originSize, &autoFocus](const auto &event) {
                 if (!event.keyDown())
                     return;
                 if (event.getKeySym() == NEXT_CLOUD_KEY_SYM) {
@@ -214,7 +238,7 @@ auto main(int argc, char **argv) -> int {
                     }
                     std::cout << "Loaded [" << result.path << "] with [" << result.cloud->size() << "] point(s)"
                               << std::endl;
-                    drawCloudToScreen<PointType>(result.cloud, colors[result.index], viewer);
+                    drawCloudToScreen<PointType>(result.cloud, colors[result.index], autoFocus, viewer);
                 } else if (event.getKeySym() == PREVIOUS_CLOUD_KEY_SYM) {
                     const auto result{cloudLoader->previous()};
                     if (!result.invalidated) {
@@ -222,11 +246,11 @@ auto main(int argc, char **argv) -> int {
                     }
                     std::cout << "Loaded [" << result.path << "] with [" << result.cloud->size() << "] point(s)"
                               << std::endl;
-                    drawCloudToScreen<PointType>(result.cloud, colors[result.index], viewer);
+                    drawCloudToScreen<PointType>(result.cloud, colors[result.index], autoFocus, viewer);
                 } else if (event.getKeySym() == CHANGE_CLOUD_COLOR_KEY_SYM) {
                     const auto result{cloudLoader->current()};
                     colors[result.index] = generateColor(random);
-                    drawCloudToScreen<PointType>(result.cloud, colors[result.index], viewer);
+                    drawCloudToScreen<PointType>(result.cloud, colors[result.index], autoFocus, viewer);
                 } else if (event.getKeySym() == TOGGLE_ORIGIN_COORD_SYSTEM_KEY_SYM) {
                     const auto state{std::exchange(showOrigin, !showOrigin)};
                     if (state) {
@@ -246,7 +270,7 @@ auto main(int argc, char **argv) -> int {
             });
 
     const auto result{cloudLoader->current()};
-    drawCloudToScreen<PointType>(result.cloud, colors[result.index], viewer);
+    drawCloudToScreen<PointType>(result.cloud, colors[result.index], autoFocus, viewer);
 
     viewer.spin();
 
