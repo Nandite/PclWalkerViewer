@@ -147,7 +147,7 @@ auto main(int argc, char **argv) -> int {
 
     boost::program_options::variables_map programOptions{};
     boost::program_options::options_description programOptionsDescriptions{
-            "Walk into a directory and and display PCD and PLY clouds. Program usage:", 1024, 512};
+            "Walk into a directory and display PCD and PLY clouds. Program usage:", 1024, 512};
 
     programOptionsDescriptions.add_options()("help,h", "Print out how to use the program")(
             "directory,d", boost::program_options::value<std::string>()->required(),
@@ -155,7 +155,7 @@ auto main(int argc, char **argv) -> int {
             "recursive,r", boost::program_options::bool_switch()->default_value(false),
             "Traverse the directory recursively")
             ("strategy,s", boost::program_options::value<std::string>()->default_value(LOAD_STRATEGY_JIT),
-             "Load the cloud now or just in time (jit or now)");
+             "Select a loading strategy for the clouds into memory (jit or immediate)");
     auto parsedProgramOptions{
             boost::program_options::command_line_parser(argc, argv).options(programOptionsDescriptions).run()};
     boost::program_options::store(parsedProgramOptions, programOptions);
@@ -165,7 +165,13 @@ auto main(int argc, char **argv) -> int {
         std::cout << getKeymapDescription() << std::endl;
         return EXIT_SUCCESS;
     }
-    boost::program_options::notify(programOptions);
+    try {
+        boost::program_options::notify(programOptions);
+    } catch (const boost::program_options::required_option &e) {
+        std::clog << "Option [" << e.get_option_name() << "] is mandatory." << std::endl;
+        std::clog << programOptionsDescriptions << std::endl;
+        return EXIT_FAILURE;
+    }
 
     const auto loadStrategy{boost::algorithm::to_lower_copy(programOptions["strategy"].as<std::string>())};
     if (selectedLoadStrategyIsSupported(loadStrategy)) {
