@@ -3,10 +3,13 @@ PclWalkerViewer
 
 <p align="center"><img src="res/logo_pcl.png" width="300" height="100"/></p>
 
-[![License][license-image]][license]
+[![][license-image]][license]
+![][platform-image]
 
-[license-image]: https://img.shields.io/badge/license-MIT-green.svg?style=flat
+[license-image]: https://img.shields.io/badge/license-MIT-green.svg?style=flat-square
 [license]: https://github.com/Nandite/PclWalkerViewer/blob/master/LICENSE
+
+[platform-image]: https://img.shields.io/badge/platorms-linux64%20%7C%20osx-lightgrey?style=flat-square
 
 PclWalkerViewer is a C++20 utility executable that walk (recursively on demand) a directory and sequentially display
 the point clouds its contains into a PCL 3D viewer. It supports PCD and PLY format.
