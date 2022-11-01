@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.14)
 project(PclWalkerViewer VERSION 1.0 LANGUAGES CXX)
 
 set(TARGET_NAME pcl_walker_viewer)
+set(DOMAIN_NAME Nandite)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -37,4 +38,13 @@ set(PROJECT_LIBRARIES ${PCL_LIBRARIES} ${Boost_LIBRARIES} Threads::Threads)
 add_executable(${TARGET_NAME} ${PROJECT_SOURCES})
 target_link_libraries(${TARGET_NAME} PRIVATE ${PROJECT_LIBRARIES})
 
-install(TARGETS ${TARGET_NAME} DESTINATION /usr/local/bin)
+############################## Install ####################################
+
+include(GNUInstallDirs)
+set(CMAKE_INSTALL_DOCDIR ${CMAKE_INSTALL_DATAROOTDIR}/doc/${PROJECT_NAME})
+
+install(TARGETS ${TARGET_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR}
+        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
+        GROUP_READ GROUP_EXECUTE
+        WORLD_READ WORLD_EXECUTE)
+############################################################################
